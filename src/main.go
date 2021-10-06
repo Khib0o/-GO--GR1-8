@@ -40,7 +40,10 @@ func readFile() {
 	}
 	re := regexp.MustCompile("\\{(.*)\\}")
 	sArretes := re.FindAllString(str[1],-1)
-	var traits [10][10]int
+	traits := make([][]int, len(sArretes))
+	for i := range traits {
+    	traits[i] = make([]int, len(sArretes))
+	}
 	for elm := range sArretes {
 		test1 := strings.Replace(sArretes[elm], "{", "", -1)
 		test2 := strings.Replace(test1, "}", "", -1)
