@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"bufio"
+	"net"
+	"io"
 	"strings"
 	"regexp"
 	"strconv"
@@ -74,7 +77,50 @@ func readString(maString string) graph{
 	return ret
 }
 
+func handleConnection(connection net.Conn, connum int) {
+
+	defer connection.Close()
+	
+	connReader := bufio.NewReader(connection)
+
+	for {
+		inputLine, err := connReader.ReadString('$')
+		if err != nil {
+			fmt.Printf("#DEBUG %d RCV ERROR no panic, just a client\n", connum)
+            fmt.Printf("Error :|%s|\n", err.Error())
+			break
+		}
+
+		inputLine = strings.TrimSuffix(inputLine, "$")
+		fmt.Printf("#DEBUG %d RCV |%s|\n", connum, inputLine)
+        splitLine := strings.Split(inputLine, " ")
+        returnedString := splitLine[len(splitLine)-1]
+        fmt.Printf("#DEBUG %d RCV Returned value |%s|\n", connum, returnedString)
+        io.WriteString(connection, fmt.Sprintf("%s\n", returnedString))
+	}
+
+}
+
+
 func main()  {
+
 	port := getPort()
-	readString("Graph1\nA,B,C,D\n{0,40,5,6}\n{10,0,5,9}\n{5,5,0,2}\n{6,9,2,0}")
+
+	//readString("Graph1\nA,B,C,D\n{0,40,5,6}\n{10,0,5,9}\n{5,5,0,2}\n{6,9,2,0}")
+
+	portString := fmt.Sprintf(":%s", strconv.Itoa(port))
+	ln, err := net.Listen("tcp", portString)
+	check(err)
+
+	connum := 0
+
+	for {
+		conn, errconn := ln.Accept()
+		check(errconn)
+
+		connum += 1
+		fmt.Println("Client connecté")
+		go handleConnection(conn, connum)
+	}
+
 }
