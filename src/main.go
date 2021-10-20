@@ -20,46 +20,61 @@ func check(e error) {
     }
 }
 
+func getPort() int{
+
+	if len(os.Args)!=2 {
+		fmt.Printf("utilisation : go run main.go <Port Number>")
+		os.Exit(1)
+	}else{
+		portNumber, err := strconv.Atoi(os.Args[1])
+		check(err)
+		fmt.Printf("Port séléctionner : ",portNumber)
+		return portNumber
+	}
+
+	return -1
+
+}
+
 func (item graph) toString() string{
 	return item.nom
 }
 
-func readFile() {
-	dat, err := os.ReadFile("../entree.txt")
-	check(err)
-	str := strings.Split(string(dat), "!")
-	var graphs [10]graph
-	for elm := range str{
-		if elm == 0 {
-			continue
-		}
-		stri := []string{"A","B","C"}
-		numb := [][]int{{1,1},{1,1}}
-		graphs[elm-1] = graph{"test", stri,  numb}
-		fmt.Println(graphs[elm-1].toString())
-	}
+func readString(maString string) graph{
+
 	re := regexp.MustCompile("\\{(.*)\\}")
-	sArretes := re.FindAllString(str[1],-1)
-	traits := make([][]int, len(sArretes))
+	nbArretes := re.FindAllString(maString,-1)
+
+	traits := make([][]int, len(nbArretes))
 	for i := range traits {
-    	traits[i] = make([]int, len(sArretes))
+    	traits[i] = make([]int, len(nbArretes))
 	}
-	for elm := range sArretes {
-		test1 := strings.Replace(sArretes[elm], "{", "", -1)
+
+	for elm := range nbArretes {
+		test1 := strings.Replace(nbArretes[elm], "{", "", -1)
 		test2 := strings.Replace(test1, "}", "", -1)
 		test3 := strings.Split(test2, ",")
-		fmt.Println("------------------")
-		fmt.Println(test3)
+		
 		for elm1 := range test3 {
-			intVar, _ := strconv.Atoi(test3[elm1])
+			intVar, err := strconv.Atoi(test3[elm1])
+			check(err)
 			traits[elm][elm1] = intVar
 		}
 	}
-	fmt.Println("------------------")
-	fmt.Println(traits)
+
+	lignes := strings.Split(maString, "\n")
+	nomGraph := lignes[0]
+	nomSommet := strings.Split(lignes[1],",")
+
+	var ret graph
+	ret.nom = nomGraph
+	ret.points = nomSommet
+	ret.arretes = traits
+
+	return ret
 }
 
 func main()  {
-	readFile()
-	
+	port := getPort()
+	readString("Graph1\nA,B,C,D\n{0,40,5,6}\n{10,0,5,9}\n{5,5,0,2}\n{6,9,2,0}")
 }
