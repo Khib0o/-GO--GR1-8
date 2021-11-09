@@ -17,6 +17,12 @@ type graph struct {
 	arretes [][]int
 }
 
+type link struct {
+	sommetUn int
+	sommetDeux int
+	poids int
+}
+
 func check(e error) {
     if e != nil {
         panic(e)
@@ -31,11 +37,11 @@ func getPort() int{
 	}else{
 		portNumber, err := strconv.Atoi(os.Args[1])
 		check(err)
-		fmt.Printf("Port séléctionner : ",portNumber)
+		fmt.Printf("Port séléctionné : ",portNumber)
 		return portNumber
 	}
 
-	return -1
+	return -1  //should not be reached
 
 }
 
@@ -90,17 +96,84 @@ func handleConnection(connection net.Conn, connum int) {
             fmt.Printf("Error :|%s|\n", err.Error())
 			break
 		}
+		fmt.Printf("Line detected",inputLine)
 
 		inputLine = strings.TrimSuffix(inputLine, "$")
 		fmt.Printf("#DEBUG %d RCV |%s|\n", connum, inputLine)
-        splitLine := strings.Split(inputLine, " ")
-        returnedString := splitLine[len(splitLine)-1]
-        fmt.Printf("#DEBUG %d RCV Returned value |%s|\n", connum, returnedString)
-        io.WriteString(connection, fmt.Sprintf("%s\n", returnedString))
+        fmt.Printf(inputLine)
+        io.WriteString(connection, fmt.Sprintf("J'ai fini de capter \n"))
 	}
 
 }
 
+func solveGraph(toSolve graph, sommet string) []link {
+
+	indexSommet := toSolve.points.findIndex(sommet)
+	sommetRelies := make([]int, len(toSolve.points))
+	index := 0
+
+	ret := make([]link, len(toSolve.points)-1)
+
+	sommetRelies[index] = indexSommet
+	index = index + 1
+
+	for index < len(toSolve.points){
+		ret[index-1] = getLowestLink(graph.traits, sommetRelies)
+		if sommetRelies.contain(ret[index-1].sommetUn){
+			sommetRelies[index] = ret[index-1].sommetDeux
+		}else{
+			sommetRelies[index] = ret[index-1].sommetUn
+		}
+	}
+
+	return ret
+}
+
+func getLowestLink(tab [][]int, done []int) link {
+
+	var ret link
+
+	indexUn := -1
+	indexDeux := -1
+	value := -1
+
+	for i := range tab{
+		for j := i; j < len(tab); j++{
+			if !(done.contain(i))&&!(done.contain(j)){
+				continue
+			}
+			if ((tab[i][j] <= value)||(value < 0)){
+				indexUn = i
+				indexDeux = j
+				value = tab[i][j]
+			}
+		}
+	}
+
+	ret.sommetUn = indexUn
+	ret.sommetDeux = indexDeux
+	ret.poids = value
+
+	return ret
+}
+
+func (self []string) findIndex(value string) int{
+	for p,v := range self{
+		if (v == value){
+			return p
+		}
+	}
+	return -1
+}
+
+func (self []int) contain(value int) bool{
+	for p,v := range self{
+		if (v == value){
+			return true
+		}
+	}
+	return false
+}
 
 func main()  {
 
