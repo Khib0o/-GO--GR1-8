@@ -19,7 +19,10 @@ func check(e error) {
 
 func main() {
 
-	graph_string := ""
+	//graph_string := "Graph1\nA,B,C,D\n{0,2,5,3}\n{2,0,0,0}\n{5,0,0,4}\n{3,0,4,0}$"
+
+	graph_string := "Graph1\nA,B,C,D,E,F\n{0,0,1,0,0,0}\n{0,0,0,0,0,2}\n{1,0,0,0,0,5}\n{0,0,0,0,3,0}\n{0,0,0,3,0,1}\n{0,2,5,0,1,0}\n$"
+
 	port := 10000
 
 	if len(os.Args) != 3 {
@@ -30,7 +33,7 @@ func main() {
 		portNumber, err := strconv.Atoi(os.Args[1])
 		check(err)
 		port = portNumber
-		graph_string = os.Args[2]
+		//graph_string = os.Args[2]
 	}
 
 	fmt.Printf("#DEBUG DIALING TCP Server on port %d\n", port)
@@ -49,17 +52,17 @@ func main() {
 
 		fmt.Sprintf(graph_string)
 
-        io.WriteString(conn, fmt.Sprintf("salut gros fdp $ vas niquer tes morts"))
+        io.WriteString(conn, fmt.Sprintf(graph_string))
 
 		fmt.Printf("#DEBUG MAIN message envoyé\n")
             
-        resultString, err := reader.ReadString('\n')
+        resultString, err := reader.ReadString('$')
         if (err != nil){
             fmt.Printf("DEBUG MAIN could not read from server")
             os.Exit(1)
         }
-        resultString = strings.TrimSuffix(resultString, "\n")
-        fmt.Printf("#DEBUG server replied : |%s|\n", resultString)
+        resultString = strings.TrimSuffix(resultString, "$")
+        fmt.Printf("#DEBUG server replied : -------------\n%s\n-------------\n", resultString)
         time.Sleep(1000 * time.Millisecond)
 
 	}

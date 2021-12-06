@@ -96,40 +96,74 @@ func handleConnection(connection net.Conn, connum int) {
             fmt.Printf("Error :|%s|\n", err.Error())
 			break
 		}
-		fmt.Printf("Line detected",inputLine)
 
 		inputLine = strings.TrimSuffix(inputLine, "$")
-		fmt.Printf("#DEBUG %d RCV |%s|\n", connum, inputLine)
-        fmt.Printf(inputLine)
-        io.WriteString(connection, fmt.Sprintf("J'ai fini de capter \n"))
+
+		graphReceived := readString(inputLine)
+
+		fmt.Printf("#DEBUG Le graph est enregistré\n")
+
+		reponse := ""
+
+		for i := range graphReceived.points{
+
+			reponse = formulateAnswer(reponse, solveGraph(graphReceived, graphReceived.points[i]),graphReceived.points)
+
+		}
+
+        io.WriteString(connection, fmt.Sprintf("%s$", reponse))
 	}
 
 }
 
 func solveGraph(toSolve graph, sommet string) []link {
 
-	indexSommet := toSolve.points.findIndex(sommet)
+	fmt.Printf("#DEBUG Debut de la résolution en partant de %d\n", sommet)
+
+	indexSommet := findIndex(toSolve.points,sommet)
+
+	fmt.Printf("#DEBUG Sommet trouvé à la place numero  %d\n", indexSommet)
+
 	sommetRelies := make([]int, len(toSolve.points))
+	coutsTot := make([]int, len(toSolve.points))
+
+	for i := range sommetRelies{
+		sommetRelies[i] = -1
+		coutsTot[i] = -1
+	}
 	index := 0
 
 	ret := make([]link, len(toSolve.points)-1)
 
 	sommetRelies[index] = indexSommet
+	coutsTot[index] = 0
 	index = index + 1
 
+	//fmt.Printf("-----------------------------------------------------------\n", index,sommetRelies)
+
 	for index < len(toSolve.points){
-		ret[index-1] = getLowestLink(graph.traits, sommetRelies)
-		if sommetRelies.contain(ret[index-1].sommetUn){
-			sommetRelies[index] = ret[index-1].sommetDeux
-		}else{
-			sommetRelies[index] = ret[index-1].sommetUn
-		}
+
+		//fmt.Printf("#DEBUG Les sommets reliés a %[1]d iteration sont %[2]d\n", index,sommetRelies)
+
+		ret[index-1] = getLowestLink(toSolve.arretes, sommetRelies, coutsTot)
+
+		//fmt.Printf("#DEBUG Lien qui va bien : %[1]d\n", ret[index-1])
+
+		sommetRelies[index] = ret[index - 1].sommetDeux
+		coutsTot[index] = correspondingWeight(sommetRelies, coutsTot, ret[index-1].sommetUn) + ret[index - 1].poids
+
+		index = index + 1
+
+		//fmt.Printf("-----------------------------------------------------------\n", index,sommetRelies)
+
 	}
+
+	fmt.Printf("Les sommets retenus sont : %d \n", ret)
 
 	return ret
 }
 
-func getLowestLink(tab [][]int, done []int) link {
+func getLowestLink(tab [][]int, done []int, couts []int) link {
 
 	var ret link
 
@@ -137,16 +171,38 @@ func getLowestLink(tab [][]int, done []int) link {
 	indexDeux := -1
 	value := -1
 
-	for i := range tab{
-		for j := i; j < len(tab); j++{
-			if !(done.contain(i))&&!(done.contain(j)){
-				continue
+	for i := range done{
+
+		if (done[i]>=0){
+
+			//fmt.Printf("----- Je cherches parmis la colonne de %d sommet\n", done[i])
+
+			toTest := done[i]
+
+			for j := range tab[toTest]{
+
+
+				//fmt.Printf("--------------- Je cherches parmis la ligne de %d sommet\n", j)
+
+
+				if (value == -1){
+					if ((!contain(done,j)) && (tab[toTest][j] != 0)){
+						//fmt.Printf("--------------- Lien trouvé allant de %d  vers %d \n",toTest, j)
+						indexUn = toTest
+						indexDeux = j
+						value = tab[toTest][j]
+					}
+				}else{
+					if (tab[toTest][j] != 0) && (!contain(done, j)) && (correspondingWeight(done, couts, indexUn) + value > correspondingWeight(done, couts, toTest)+tab[toTest][j]){
+						//fmt.Printf("--------------- Lien trouvé allant de %d  vers %d \n",toTest, j)
+						indexUn = toTest
+						indexDeux = j
+						value = tab[toTest][j]
+					}
+				}
+
 			}
-			if ((tab[i][j] <= value)||(value < 0)){
-				indexUn = i
-				indexDeux = j
-				value = tab[i][j]
-			}
+
 		}
 	}
 
@@ -157,22 +213,50 @@ func getLowestLink(tab [][]int, done []int) link {
 	return ret
 }
 
-func (self []string) findIndex(value string) int{
+func correspondingWeight(sommets []int, weight []int, sommet int) int {
+
+	for i:= range sommets{
+		if (sommets[i] == sommet){
+			return weight[i]
+		}
+	}
+	return -1
+
+}
+
+func findIndex(self []string, value string) int{
 	for p,v := range self{
 		if (v == value){
 			return p
+			p = p + 1
 		}
 	}
 	return -1
 }
 
-func (self []int) contain(value int) bool{
+func  contain(self []int, value int) bool{
 	for p,v := range self{
 		if (v == value){
 			return true
+			p = p + 1
 		}
 	}
 	return false
+}
+
+func formulateAnswer(before string, toAdd []link, dico []string) string{
+
+	str := before
+
+	str += fmt.Sprintf("Point initial : %s\n", dico[toAdd[0].sommetUn])
+	
+	for i := range toAdd{
+
+		str += dico[toAdd[i].sommetUn] + " -------->" + dico[toAdd[i].sommetDeux] + " (Poids : " +  strconv.Itoa(toAdd[i].poids) + ")\n"
+
+	}
+
+	return str
 }
 
 func main()  {
@@ -192,7 +276,7 @@ func main()  {
 		check(errconn)
 
 		connum += 1
-		fmt.Println("Client connecté")
+		fmt.Println("Client connecté\n")
 		go handleConnection(conn, connum)
 	}
 
