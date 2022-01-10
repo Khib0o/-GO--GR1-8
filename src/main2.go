@@ -23,19 +23,169 @@ type link struct {
 	poids int
 }
 
+type infoCon struct {
+	connexion net.Conn
+	numero int
+}
+
+type problem struct {
+	connexion net.Conn
+	graphique graph
+	sommetDepart string
+	nbSommets int
+	numero int
+}
+
+type solution struct {
+	connexion net.Conn
+	reponse string
+	nbSommets int
+	numero int
+}
+
+const WORKER int = 6
+
+func main()  {
+
+	port := getPort()
+
+	portString := fmt.Sprintf(":%s", strconv.Itoa(port))
+	ln, err := net.Listen("tcp", portString)
+	check(err)
+
+	connum := 0
+
+	var channelConnexion chan infoCon
+	channelConnexion = make(chan infoCon, 10)
+
+	var channelProblem chan problem
+	channelProblem = make(chan problem, 10)
+
+	var channelSolution chan solution
+	channelSolution = make(chan solution, 10)
+
+	go handleConnection(channelConnexion, channelProblem)
+	go jeSuisLeDernierMaillon(channelSolution)
+
+	for compteur := 0 ; compteur < WORKER ; compteur ++{
+		go jeSuisUnWorker(channelProblem, channelSolution, compteur)
+	}
+
+	for {
+		conn, errconn := ln.Accept()
+		check(errconn)
+		connum += 1
+
+		var conne infoCon
+		conne.numero = connum
+		conne.connexion = conn
+
+		fmt.Println("\n --Client connecté --\n")
+		channelConnexion <- conne
+	}
+
+}
+
+func handleConnection(inp chan infoCon, out chan problem) {
+	
+	for {
+
+		conn := <- inp
+		
+		connReader := bufio.NewReader(conn.connexion)
+
+		for {
+			inputLine, err := connReader.ReadString('$')
+			if err != nil {
+	            fmt.Printf("Error :|%s|\n", err.Error())
+				fmt.Printf("--Client disconnected--")
+				break
+			}
+
+			inputLine = strings.TrimSuffix(inputLine, "$")
+			graphReceived := readString(inputLine)
+
+			for i := range graphReceived.points{
+
+				var toPush problem
+				toPush.connexion = conn.connexion
+				toPush.sommetDepart = graphReceived.points[i]
+				toPush.graphique = graphReceived
+				toPush.nbSommets = len(graphReceived.points)
+				toPush.numero = conn.numero
+				out <- toPush
+
+				fmt.Printf("Probleme créé et envoyé")
+
+			}
+
+
+		}
+
+	}
+
+}
+
+func jeSuisUnWorker(inp chan problem, out chan solution, num int){
+	
+	for{
+		prob := <- inp
+
+		reponse := ""
+		reponse = formulateAnswer(reponse, solveGraph(prob.graphique, prob.sommetDepart),prob.graphique.points)
+
+		var soluce solution
+		soluce.reponse = reponse
+		soluce.connexion = prob.connexion
+		soluce.nbSommets = prob.nbSommets
+		soluce.numero = prob.numero
+
+		out <- soluce
+		fmt.Printf("\nSolution envoyée par %d\n",num)
+	}
+
+}
+
+func jeSuisLeDernierMaillon(inp chan solution){
+
+	tableauCompte := make([]int, 10)
+	tableauRep := make([]string, 10)
+
+	for i := 0; i<10; i++{
+		tableauCompte[i] = 0
+		tableauRep[i] = ""
+	}
+
+	for{
+		
+		soluce := <- inp
+
+		if (tableauCompte[soluce.numero%10]==0){
+			tableauCompte[soluce.numero%10] = 1
+			tableauRep[soluce.numero%10] += soluce.reponse
+		}else{
+			if (tableauCompte[soluce.numero%10]==soluce.nbSommets-1){
+				tableauRep[soluce.numero%10] += soluce.reponse
+				io.WriteString(soluce.connexion, fmt.Sprintf("%s$", tableauRep[soluce.numero%10]))
+				soluce.connexion.Close()
+				tableauCompte[soluce.numero%10] = 0
+				tableauRep[soluce.numero%10] = ""
+			}else{
+				tableauCompte[soluce.numero%10]+= 1
+				tableauRep[soluce.numero%10] += soluce.reponse
+			}
+		}
+
+		io.WriteString(soluce.connexion, fmt.Sprintf("%s", soluce.reponse))
+
+	}
+
+}
+
 func check(e error) {
     if e != nil {
         panic(e)
     }
-}
-
-func (g graph) toString() string{
-	str := fmt.Sprintf("Le nom du graph est :\n"+g.nom+"\n Ses sommets sont :\n")
-	for _,elm := range g.points{
-		str = str + elm + " "
-	}
-	str = str + "\n"
-	return str
 }
 
 func getPort() int{
@@ -86,38 +236,6 @@ func readString(maString string) graph{
 	ret.arretes = traits
 
 	return ret
-}
-
-func handleConnection(connection net.Conn, connum int) {
-
-	defer connection.Close()
-	
-	connReader := bufio.NewReader(connection)
-
-	for {
-		inputLine, err := connReader.ReadString('$')
-		if err != nil {
-            fmt.Printf("Error :|%s|\n", err.Error())
-			fmt.Printf("--Client %d disconnected--", connum)
-			break
-		}
-
-		inputLine = strings.TrimSuffix(inputLine, "$")
-
-
-		graphReceived := readString(inputLine)
-
-		reponse := ""
-
-		for i := range graphReceived.points{
-
-			reponse = formulateAnswer(reponse, solveGraph(graphReceived, graphReceived.points[i]),graphReceived.points)
-
-		}
-
-        io.WriteString(connection, fmt.Sprintf("%s$", reponse))
-	}
-
 }
 
 func solveGraph(toSolve graph, sommet string) []link {
@@ -242,25 +360,4 @@ func formulateAnswer(before string, toAdd []link, dico []string) string{
 	}
 
 	return str
-}
-
-func main()  {
-
-	port := getPort()
-
-	portString := fmt.Sprintf(":%s", strconv.Itoa(port))
-	ln, err := net.Listen("tcp", portString)
-	check(err)
-
-	connum := 0
-
-	for {
-		conn, errconn := ln.Accept()
-		check(errconn)
-
-		connum += 1
-		fmt.Println("\n --Client connecté --\n")
-		go handleConnection(conn, connum)
-	}
-
 }
