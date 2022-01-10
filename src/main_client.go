@@ -18,17 +18,15 @@ func check(e error) {
 
 func main() {
 
-	//graph_string := "Graph1\nA,B,C,D\n{0,2,5,3}\n{2,0,0,0}\n{5,0,0,4}\n{3,0,4,0}$"
-
-	graph_string := "TestTD2\nA,B,C,D,E,F\n{0,2,100,0,0,0}\n{2,0,10,60,0,0}\n{100,10,0,0,3,2}}\n{0,60,0,0,4,0}\n{0,0,3,4,0,2}\n{0,0,2,0,1,0}\n$"
-
 	port := 10000
+
+	graph_string := ""
 
 	if len(os.Args) != 4 {
 		fmt.Printf("Usage: go run client.go <portnumber> <file> <graph_number>\n")
 		os.Exit(1)
 	} else {
-		fmt.Printf("#DEBUG ARGS Port Number : %s\n", os.Args[1])
+		//fmt.Printf("#DEBUG ARGS Port Number : %s\n", os.Args[1])
 		portNumber, err := strconv.Atoi(os.Args[1])
 		check(err)
 		port = portNumber
@@ -46,8 +44,8 @@ func main() {
     		if (compteur == nbG){
 				graph_string = test
 				graph_string = strings.Replace(graph_string,"\\n","\n",-1)
-				fmt.Printf(graph_string)
-				fmt.Printf("\n")
+				//fmt.Printf(graph_string)
+				//fmt.Printf("\n")
 				//fmt.Print("TestTD2\nA,B,C,D,E,F\n{0,2,100,0,0,0}\n{2,0,10,60,0,0}\n{100,10,0,0,3,2}}\n{0,60,0,0,4,0}\n{0,0,3,4,0,2}\n{0,0,2,0,1,0}\n$")
 				break
 			}
@@ -61,7 +59,7 @@ func main() {
 		//graph_string = os.Args[2]
 	}
 
-	fmt.Printf("#DEBUG DIALING TCP Server on port %d\n", port)
+	//fmt.Printf("#DEBUG DIALING TCP Server on port %d\n", port)
 	portString := fmt.Sprintf("127.0.0.1:%s", strconv.Itoa(port))
 	fmt.Printf("#DEBUG MAIN PORT STRING |%s|\n", portString)
 
@@ -73,11 +71,11 @@ func main() {
 
         defer conn.Close()
         reader := bufio.NewReader(conn)
-		fmt.Printf("#DEBUG MAIN connected\n")
+		//fmt.Printf("#DEBUG MAIN connected\n")
 
         io.WriteString(conn, fmt.Sprintf(graph_string))
 
-		fmt.Printf("#DEBUG MAIN message envoyé\n")
+		//fmt.Printf("#DEBUG MAIN message envoyé\n")
             
         resultString, err := reader.ReadString('$')
         if (err != nil){

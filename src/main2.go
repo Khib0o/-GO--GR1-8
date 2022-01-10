@@ -43,7 +43,7 @@ type solution struct {
 	numero int
 }
 
-const WORKER int = 6
+const WORKER int = 10
 
 func main()  {
 
@@ -115,7 +115,6 @@ func handleConnection(inp chan infoCon, out chan problem) {
 				toPush.numero = conn.numero
 				out <- toPush
 
-				fmt.Printf("Probleme créé et envoyé")
 
 			}
 
@@ -129,8 +128,8 @@ func handleConnection(inp chan infoCon, out chan problem) {
 func jeSuisUnWorker(inp chan problem, out chan solution, num int){
 	
 	for{
-		prob := <- inp
 
+		prob := <- inp
 		reponse := ""
 		reponse = formulateAnswer(reponse, solveGraph(prob.graphique, prob.sommetDepart),prob.graphique.points)
 
@@ -141,7 +140,6 @@ func jeSuisUnWorker(inp chan problem, out chan solution, num int){
 		soluce.numero = prob.numero
 
 		out <- soluce
-		fmt.Printf("\nSolution envoyée par %d\n",num)
 	}
 
 }
@@ -159,24 +157,25 @@ func jeSuisLeDernierMaillon(inp chan solution){
 	for{
 		
 		soluce := <- inp
-
 		if (tableauCompte[soluce.numero%10]==0){
+
 			tableauCompte[soluce.numero%10] = 1
 			tableauRep[soluce.numero%10] += soluce.reponse
+
 		}else{
 			if (tableauCompte[soluce.numero%10]==soluce.nbSommets-1){
+
 				tableauRep[soluce.numero%10] += soluce.reponse
 				io.WriteString(soluce.connexion, fmt.Sprintf("%s$", tableauRep[soluce.numero%10]))
 				soluce.connexion.Close()
 				tableauCompte[soluce.numero%10] = 0
 				tableauRep[soluce.numero%10] = ""
+
 			}else{
 				tableauCompte[soluce.numero%10]+= 1
 				tableauRep[soluce.numero%10] += soluce.reponse
 			}
 		}
-
-		io.WriteString(soluce.connexion, fmt.Sprintf("%s", soluce.reponse))
 
 	}
 
