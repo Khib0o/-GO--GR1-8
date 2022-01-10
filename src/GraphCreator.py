@@ -44,9 +44,11 @@ for i in range(nombre_sommet):
     
     if (mod2 > nombre_sommet-1):
         mod2 -= nombre_sommet
-        
-    valeursInter[mod1]=1
-    valeursInter[mod2]=1
+    
+    cost = random.randint(1,20)
+    
+    valeursInter[mod1]=cost
+    valeursInter[mod2]=cost
     
     valeurs.append(valeursInter)
     
@@ -76,6 +78,8 @@ for elm in range(nombre_sommet):
         if(elm1 != nombre_sommet-1):
             file.write(",")
     file.write("}")
+    if(elm != nombre_sommet-1):
+        file.write("\\n")
         
 file.write("$")
 

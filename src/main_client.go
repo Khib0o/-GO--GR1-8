@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"bufio"	
     "strings"
+	"time"
 )
 
 func check(e error) {
@@ -22,8 +23,8 @@ func main() {
 
 	graph_string := ""
 
-	if len(os.Args) != 4 {
-		fmt.Printf("Usage: go run client.go <portnumber> <file> <graph_number>\n")
+	if len(os.Args) != 6 {
+		fmt.Printf("Usage: go run client.go <Numero de port> <Fichier> <Ligne du graph> <Afficher résultat (y/n)> <Afficher temps (y/n)>\n")
 		os.Exit(1)
 	} else {
 		//fmt.Printf("#DEBUG ARGS Port Number : %s\n", os.Args[1])
@@ -75,15 +76,22 @@ func main() {
 
         io.WriteString(conn, fmt.Sprintf(graph_string))
 
-		//fmt.Printf("#DEBUG MAIN message envoyé\n")
+		fmt.Printf("#DEBUG MAIN message envoyé\n")
             
+		mesureTemps := time.Now()
         resultString, err := reader.ReadString('$')
         if (err != nil){
             fmt.Printf("DEBUG MAIN could not read from server")
             os.Exit(1)
         }
+		elapsed := time.Since(mesureTemps)
         resultString = strings.TrimSuffix(resultString, "$")
-        fmt.Printf("#DEBUG server replied : -------------\n%s\n-------------\n", resultString)
+		if (os.Args[4]=="y"){
+        	fmt.Printf("#DEBUG server replied : -------------\n%s\n-------------\n", resultString)
+		}
+		if (os.Args[5]=="y"){
+			fmt.Printf("He took %s\n", elapsed)
+		}
 
 	}
 
