@@ -76,8 +76,6 @@ for elm in range(nombre_sommet):
         if(elm1 != nombre_sommet-1):
             file.write(",")
     file.write("}")
-    if(elm != nombre_sommet-1):
-        file.write("\\n")
         
 file.write("$")
 
