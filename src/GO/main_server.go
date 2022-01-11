@@ -1,51 +1,51 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"bufio"
-	"net"
+	"fmt"
 	"io"
-	"strings"
+	"net"
+	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type graph struct {
-	nom string
-	points []string
+	nom     string
+	points  []string
 	arretes [][]int
 }
 
 type link struct {
-	sommetUn int
+	sommetUn   int
 	sommetDeux int
-	poids int
+	poids      int
 }
 
 type infoCon struct {
 	connexion net.Conn
-	numero int
+	numero    int
 }
 
 type problem struct {
-	connexion net.Conn
-	graphique graph
+	connexion    net.Conn
+	graphique    graph
 	sommetDepart string
-	nbSommets int
-	numero int
+	nbSommets    int
+	numero       int
 }
 
 type solution struct {
 	connexion net.Conn
-	reponse string
+	reponse   string
 	nbSommets int
-	numero int
+	numero    int
 }
 
-const WORKER int = 10
+const WORKER int = 10		//Nombre de goroutine travaillant à la résolution de problèmes
 
-func main()  {
+func main() {
 
 	port := getPort()
 
@@ -64,11 +64,11 @@ func main()  {
 	var channelSolution chan solution
 	channelSolution = make(chan solution, 10)
 
-	go handleConnection(channelConnexion, channelProblem)
-	go jeSuisLeDernierMaillon(channelSolution)
+	go traitementConnexions(channelConnexion, channelProblem)
+	go formulateurDeReponse(channelSolution)
 
-	for compteur := 0 ; compteur < WORKER ; compteur ++{
-		go jeSuisUnWorker(channelProblem, channelSolution, compteur)
+	for compteur := 0; compteur < WORKER; compteur++ {
+		go worker(channelProblem, channelSolution, compteur)
 	}
 
 	for {
@@ -80,32 +80,30 @@ func main()  {
 		conne.numero = connum
 		conne.connexion = conn
 
-		fmt.Println("\n --Client connecté --\n")
 		channelConnexion <- conne
 	}
 
 }
 
-func handleConnection(inp chan infoCon, out chan problem) {
-	
+//Gère les connexions entrantes
+func traitementConnexions(inp chan infoCon, out chan problem) {
+
 	for {
 
-		conn := <- inp
-		
+		conn := <-inp
+
 		connReader := bufio.NewReader(conn.connexion)
 
 		for {
 			inputLine, err := connReader.ReadString('$')
 			if err != nil {
-	            fmt.Printf("Error :|%s|\n", err.Error())
-				fmt.Printf("--Client disconnected--")
 				break
 			}
 
 			inputLine = strings.TrimSuffix(inputLine, "$")
 			graphReceived := readString(inputLine)
 
-			for i := range graphReceived.points{
+			for i := range graphReceived.points {
 
 				var toPush problem
 				toPush.connexion = conn.connexion
@@ -115,9 +113,7 @@ func handleConnection(inp chan infoCon, out chan problem) {
 				toPush.numero = conn.numero
 				out <- toPush
 
-
 			}
-
 
 		}
 
@@ -125,13 +121,14 @@ func handleConnection(inp chan infoCon, out chan problem) {
 
 }
 
-func jeSuisUnWorker(inp chan problem, out chan solution, num int){
-	
-	for{
+//Résoud un sous-problème
+func worker(inp chan problem, out chan solution, num int) {
 
-		prob := <- inp
+	for {
+
+		prob := <-inp
 		reponse := ""
-		reponse = formulateAnswer(reponse, solveGraph(prob.graphique, prob.sommetDepart),prob.graphique.points)
+		reponse = formulateAnswer(reponse, solveGraph(prob.graphique, prob.sommetDepart), prob.graphique.points)
 
 		var soluce solution
 		soluce.reponse = reponse
@@ -144,36 +141,38 @@ func jeSuisUnWorker(inp chan problem, out chan solution, num int){
 
 }
 
-func jeSuisLeDernierMaillon(inp chan solution){
+//Une fois toutes les solutions d'un problème arrivée, envoie la réponse au client
+func formulateurDeReponse(inp chan solution) {
 
 	tableauCompte := make([]int, 10)
 	tableauRep := make([]string, 10)
 
-	for i := 0; i<10; i++{
+	for i := 0; i < 10; i++ {
 		tableauCompte[i] = 0
 		tableauRep[i] = ""
 	}
 
-	for{
-		
-		soluce := <- inp
-		if (tableauCompte[soluce.numero%10]==0){
+	for {
 
-			tableauCompte[soluce.numero%10] = 1
-			tableauRep[soluce.numero%10] += soluce.reponse
+		soluce := <-inp
+		index := soluce.numero % 10
+		if tableauCompte[index] == 0 {
 
-		}else{
-			if (tableauCompte[soluce.numero%10]==soluce.nbSommets-1){
+			tableauCompte[index] = 1
+			tableauRep[index] += soluce.reponse
 
-				tableauRep[soluce.numero%10] += soluce.reponse
-				io.WriteString(soluce.connexion, fmt.Sprintf("%s$", tableauRep[soluce.numero%10]))
+		} else {
+			if tableauCompte[index] == soluce.nbSommets-1 {
+
+				tableauRep[index] += soluce.reponse
+				io.WriteString(soluce.connexion, fmt.Sprintf("%s$", tableauRep[index]))
 				soluce.connexion.Close()
-				tableauCompte[soluce.numero%10] = 0
-				tableauRep[soluce.numero%10] = ""
+				tableauCompte[index] = 0
+				tableauRep[index] = ""
 
-			}else{
-				tableauCompte[soluce.numero%10]+= 1
-				tableauRep[soluce.numero%10] += soluce.reponse
+			} else {
+				tableauCompte[index] += 1
+				tableauRep[index] += soluce.reponse
 			}
 		}
 
@@ -182,20 +181,20 @@ func jeSuisLeDernierMaillon(inp chan solution){
 }
 
 func check(e error) {
-    if e != nil {
-        panic(e)
-    }
+	if e != nil {
+		panic(e)
+	}
 }
 
-func getPort() int{
+func getPort() int {
 
-	if len(os.Args)!=2 {
-		fmt.Printf("utilisation : go run main.go <Port Number>")
+	if len(os.Args) != 2 {
+		fmt.Printf("Usage : go run main_server.go <Numero de port>")
 		os.Exit(1)
-	}else{
+	} else {
 		portNumber, err := strconv.Atoi(os.Args[1])
 		check(err)
-		fmt.Printf("Port séléctionné : ",portNumber)
+		fmt.Printf("Port séléctionné : ", portNumber)
 		return portNumber
 	}
 
@@ -203,21 +202,22 @@ func getPort() int{
 
 }
 
-func readString(maString string) graph{
+//Transforme une string en un objet de type graph
+func readString(maString string) graph {
 
 	re := regexp.MustCompile("\\{(.*)\\}")
-	nbArretes := re.FindAllString(maString,-1)
+	nbArretes := re.FindAllString(maString, -1)
 
 	traits := make([][]int, len(nbArretes))
 	for i := range traits {
-    	traits[i] = make([]int, len(nbArretes))
+		traits[i] = make([]int, len(nbArretes))
 	}
 
 	for elm := range nbArretes {
 		test1 := strings.Replace(nbArretes[elm], "{", "", -1)
 		test2 := strings.Replace(test1, "}", "", -1)
 		test3 := strings.Split(test2, ",")
-		
+
 		for elm1 := range test3 {
 			intVar, err := strconv.Atoi(test3[elm1])
 			check(err)
@@ -227,7 +227,7 @@ func readString(maString string) graph{
 
 	lignes := strings.Split(maString, "\n")
 	nomGraph := lignes[0]
-	nomSommet := strings.Split(lignes[1],",")
+	nomSommet := strings.Split(lignes[1], ",")
 
 	var ret graph
 	ret.nom = nomGraph
@@ -237,14 +237,15 @@ func readString(maString string) graph{
 	return ret
 }
 
+//Djikstra : Résoud un graphique à partir d'un sommet donné
 func solveGraph(toSolve graph, sommet string) []link {
 
-	indexSommet := findIndex(toSolve.points,sommet)
+	indexSommet := findIndex(toSolve.points, sommet)
 
 	sommetRelies := make([]int, len(toSolve.points))
 	coutsTot := make([]int, len(toSolve.points))
 
-	for i := range sommetRelies{
+	for i := range sommetRelies {
 		sommetRelies[i] = -1
 		coutsTot[i] = -1
 	}
@@ -256,47 +257,45 @@ func solveGraph(toSolve graph, sommet string) []link {
 	coutsTot[index] = 0
 	index = index + 1
 
-	for index < len(toSolve.points){
+	for index < len(toSolve.points) {
 
 		ret[index-1] = getLowestLink(toSolve.arretes, sommetRelies, coutsTot)
 
-		sommetRelies[index] = ret[index - 1].sommetDeux
-		coutsTot[index] = correspondingWeight(sommetRelies, coutsTot, ret[index-1].sommetUn) + ret[index - 1].poids
+		sommetRelies[index] = ret[index-1].sommetDeux
+		coutsTot[index] = correspondingWeight(sommetRelies, coutsTot, ret[index-1].sommetUn) + ret[index-1].poids
 
 		index = index + 1
 
-
 	}
-
 
 	return ret
 }
 
-func getLowestLink(tab [][]int, done []int, couts []int) link {
+// Regarde le lien le plus interessant à retenir pour le prochain coup
+func getLowestLink(tab [][]int, done []int, couts []int) link { 
 
-	var ret link
+	var ret link 
 
 	indexUn := -1
 	indexDeux := -1
 	value := -1
 
-	for i := range done{
+	for i := range done {
 
-		if (done[i]>=0){
-
+		if done[i] >= 0 {
 
 			toTest := done[i]
 
-			for j := range tab[toTest]{
+			for j := range tab[toTest] {
 
-				if (value == -1){
-					if ((!contain(done,j)) && (tab[toTest][j] != 0)){
+				if value == -1 {
+					if (!contain(done, j)) && (tab[toTest][j] != 0) {
 						indexUn = toTest
 						indexDeux = j
 						value = tab[toTest][j]
 					}
-				}else{
-					if (tab[toTest][j] != 0) && (!contain(done, j)) && (correspondingWeight(done, couts, indexUn) + value > correspondingWeight(done, couts, toTest)+tab[toTest][j]){
+				} else {
+					if (tab[toTest][j] != 0) && (!contain(done, j)) && (correspondingWeight(done, couts, indexUn)+value > correspondingWeight(done, couts, toTest)+tab[toTest][j]) {
 						indexUn = toTest
 						indexDeux = j
 						value = tab[toTest][j]
@@ -315,10 +314,11 @@ func getLowestLink(tab [][]int, done []int, couts []int) link {
 	return ret
 }
 
+//Permet de récupérer le poids pour atteindre un sommet donné
 func correspondingWeight(sommets []int, weight []int, sommet int) int {
 
-	for i:= range sommets{
-		if (sommets[i] == sommet){
+	for i := range sommets {
+		if sommets[i] == sommet {
 			return weight[i]
 		}
 	}
@@ -326,9 +326,10 @@ func correspondingWeight(sommets []int, weight []int, sommet int) int {
 
 }
 
-func findIndex(self []string, value string) int{
-	for p,v := range self{
-		if (v == value){
+//Renvoie l'index d'un sommmet donné
+func findIndex(self []string, value string) int {
+	for p, v := range self {
+		if v == value {
 			return p
 			p = p + 1
 		}
@@ -336,25 +337,27 @@ func findIndex(self []string, value string) int{
 	return -1
 }
 
-func  contain(self []int, value int) bool{
-	for p,v := range self{
-		if (v == value){
-			return true
+//Vérifie si un sommet est contenu dans les sommets déjà reliés
+func contain(self []int, value int) bool {
+	for p, v := range self {
+		if v == value {
 			p = p + 1
+			return true
 		}
 	}
 	return false
 }
 
-func formulateAnswer(before string, toAdd []link, dico []string) string{
+//Permet de formuler une réponse à partir du tableau des liens choisis
+func formulateAnswer(before string, toAdd []link, dico []string) string {
 
 	str := before
 
 	str += fmt.Sprintf("Point initial : %s\n", dico[toAdd[0].sommetUn])
-	
-	for i := range toAdd{
 
-		str += dico[toAdd[i].sommetUn] + " -------->" + dico[toAdd[i].sommetDeux] + " (Poids : " +  strconv.Itoa(toAdd[i].poids) + ")\n"
+	for i := range toAdd {
+
+		str += dico[toAdd[i].sommetUn] + " -------->" + dico[toAdd[i].sommetDeux] + " (Poids : " + strconv.Itoa(toAdd[i].poids) + ")\n"
 
 	}
 

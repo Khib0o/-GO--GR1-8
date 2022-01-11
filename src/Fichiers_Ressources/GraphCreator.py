@@ -2,16 +2,15 @@ from os import system
 import random
 import sys
 
-if (len(sys.argv)!=3):
+if (len(sys.argv)!=4):
     print("Utilisation : python3 GraphCreator.py <Nombre de sommet> <Nombre de lien additionel>")
     sys.exit()
 
 ALPHABET = ("a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z")
 
-file = open('graphs.txt', 'a')
+file = open(sys.argv[3], 'a')
 name = random.randint(0, 10000)
 
-file.write("\n")
 file.write(str(name))
 
 nombre_sommet = int(sys.argv[1])
@@ -82,5 +81,6 @@ for elm in range(nombre_sommet):
         file.write("\\n")
         
 file.write("$")
+file.write("\n")
 
 file.close()

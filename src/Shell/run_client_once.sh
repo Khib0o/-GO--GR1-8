@@ -1,0 +1,1 @@
+go run ../GO/main_client.go 25565 ../Fichiers_Ressources/graphs_persos.txt 2 y y

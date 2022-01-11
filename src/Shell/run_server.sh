@@ -1,0 +1,1 @@
+go run ../GO/main_server.go 25565
