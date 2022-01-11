@@ -91,3 +91,11 @@ graphs_persos.txt au server et attends la réponse
 pour tester la robustesse du server. Utilisation :
 
 ./test_multiples_connexion.sh <Nombre d'execution>
+
+-------------------------------------------------------------------------------
+
+Sources :
+
+- https://go.dev/doc/
+
+- Archives de cours de Mr.Pierre François
